@@ -33,6 +33,7 @@ OPTWARE_DIR=/data/opt
 ADB_WRITABLE_DIR=/data/local
 
 # Particular field to install from, stable by default
+#FEED=http://ipkg.nslu2-linux.org/feeds/optware/cs08q1armel/cross/stable
 FEED=http://ipkg.nslu2-linux.org/feeds/optware/cs08q1armel/cross/stable
 
 # DO NOT edit anything below this line unless you know what you are doing
@@ -71,32 +72,32 @@ libc_libs="lib/ld-2.5.so ld-linux.so.3 \
 
 t_cp () {
     # copy file on a device
-    adb shell su -c "cat $1 >$2"
+    adb shell "su -c 'cat $1 >$2'"
 }
 
 t_cd_ln () {
     local dir=$1
     shift
-    adb shell su -c "cd $dir; ln $*"
+    adb shell "su -c 'cd $dir;ln $*'"
 }
 
 t_chmod () {
-    adb shell su -c "chmod $*"
+    adb shell "su -c 'chmod $*'"
 }
 
 t_mkdir_p () {
     # This doesn't complain if dir exists, but can't create intermediate dirs
-    adb shell su -c "ls $1 >/dev/null 2>&1 || mkdir $1"
+    adb shell "su -c 'mkdir $1'"
 }
 
 t_rm_f () {
     # Doesn't complain if file not there
-    adb shell su -c "ls $1 >/dev/null 2>&1 && rm $1"
+    adb shell su -c "rm -f $1"
 }
 
 t_rm_rf () {
     # Doesn't complain if dir not there
-    adb shell su -c "ls $1 >/dev/null 2>&1 && rm -r $1"
+    adb shell su -c "rm -rf $1"
 }
 
 t_remount_rw () {
@@ -199,11 +200,11 @@ optware_uninstall () {
     echo "Make sure that your device is woken up and connected to the Internet"
     read -p "Press [Enter] to continue"
     t_remount_rw /
-    adb shell su -c "rm -r $OPTWARE_DIR"
-    adb shell su -c "rm /lib"
-    adb shell su -c "rm /bin"
-    adb shell su -c "rm /data/opt"
-    adb shell su -c "rm /tmp"
+    adb shell su -c "rm -rf $OPTWARE_DIR"
+    adb shell su -c "rm -rf /lib"
+    adb shell su -c "rm -rf /bin"
+    adb shell su -c "rm -rf /data/opt"
+    adb shell su -c "rm -rf /tmp"
     t_remount_ro /
     t_remount_rw /system
     adb shell su -c "rm /etc/resolv.conf"
@@ -230,9 +231,9 @@ set_password () {
     read -s password2
     if [ $password1 == $password2 ]
     then
-        adb shell echo $password1 | su -c /data/opt/bin/busybox passwd root --stdin
+        adb shell "su -c '/data/opt/bin/busybox passwd root -d $password1'"
     else
-        echo "Passwords didn't match. Please try again."
+        echo "Passwords didn\'t match. Please try again."
         set_password
     fi
 }
@@ -273,16 +274,16 @@ t_rm_rf $tmp_dir
 t_mkdir_p $tmp_dir
 
 t_mkdir_p $OPTWARE_DIR
-t_cd_ln . -s $OPTWARE_DIR /data/opt
+t_cd_ln $OPTWARE_DIR -s $OPTWARE_DIR /data/opt
 
 t_mkdir_p $OPTWARE_DIR/rootbin
-t_cd_ln . -s $OPTWARE_DIR/rootbin /bin
+t_cd_ln $OPTWARE_DIR -s $OPTWARE_DIR/rootbin /bin
 
 t_mkdir_p $OPTWARE_DIR/rootlib
-t_cd_ln . -s $OPTWARE_DIR/rootlib /lib
+t_cd_ln $OPTWARE_DIR -s $OPTWARE_DIR/rootlib /lib
 
 t_mkdir_p $OPTWARE_DIR/tmp
-t_cd_ln . -s $OPTWARE_DIR/tmp /tmp
+t_cd_ln $OPTWARE_DIR -s $OPTWARE_DIR/tmp /tmp
 
 t_mkdir_p $OPTWARE_DIR/home
 t_mkdir_p $OPTWARE_DIR/home/root
@@ -339,10 +340,10 @@ t_cd_ln /bin -s /data/opt/bin/busybox pgrep
 echo "== Configuring package feed =="
 t_mkdir_p /data/opt/etc
 t_mkdir_p /data/opt/etc/ipkg
-adb shell su -c "echo src cross $FEED >/data/opt/etc/ipkg/feeds.conf"
+adb shell "su -c 'echo src cross $FEED >/data/opt/etc/ipkg/feeds.conf'"
 
 echo "== Configuring domain name resolution =="
-adb shell su -c "echo nameserver 8.8.8.8 >/data/opt/etc/resolv.conf"
+adb shell "su -c 'echo nameserver 8.8.8.8 >/data/opt/etc/resolv.conf'"
 # On a normal Android system, /etc is symlink to /system/etc, but just in case...
 t_mkdir_p /etc
 # but for normal system, we need to remount /system
@@ -360,45 +361,37 @@ echo "== Configuring /etc/mtab =="
 t_cd_ln . -s /proc/mounts /etc/mtab
 
 echo "== Configuring users =="
-adb shell su -c "echo root:x:0:0:root:/opt/home/root:/system/bin/bash >/data/opt/etc/passwd"
-adb shell su -c "echo shell:x:2000:2000:shell:/opt/home/user:/system/bin/bash >>/data/opt/etc/passwd"
-adb shell su -c "echo root::14531:0:99999:7::: > /etc/shadow"
+adb shell "su -c 'echo root:x:0:0:root:/opt/home/root:/system/bin/bash >/data/opt/etc/passwd'"
+adb shell "su -c 'echo shell:x:2000:2000:shell:/opt/home/user:/system/bin/bash >>/data/opt/etc/passwd'"
+adb shell "su -c 'echo root::14531:0:99999:7::: > /etc/shadow'"
 t_cd_ln . -s /data/opt/etc/passwd /etc/passwd
 
 echo "== Configuring groups =="
-adb shell su -c "echo root:x:0:root >/data/opt/etc/group"
-adb shell su -c "echo shell:x:2000:shell >>/data/opt/etc/group"
-adb shell su -c "echo root:!:: > /etc/gshadow"
+adb shell "su -c 'echo root:x:0:root >/data/opt/etc/group'"
+adb shell "su -c 'echo shell:x:2000:shell >>/data/opt/etc/group'"
+adb shell "su -c 'echo root:!:: > /etc/gshadow'"
 t_cd_ln . -s /data/opt/etc/group /etc/group
 
 echo "== Configuring path and shells =="
-adb shell su -c "echo /system/bin/bash > /etc/shells"
-adb shell su -c "echo PATH=/usr/bin:/usr/sbin:/bin:/sbin:/system/sbin:/system/bin:/system/xbin:/system/xbin/bb:/data/local/bin > /etc/profile"
-adb shell su -c "echo export PATH >> /etc/profile"
+adb shell "su -c 'echo /system/bin/bash > /etc/shells'"
+adb shell "su -c 'echo PATH=/usr/bin:/usr/sbin:/bin:/sbin:/system/sbin:/system/bin:/system/xbin:/system/xbin/bb:/data/local/bin > /etc/profile'"
+adb shell "su -c 'echo export PATH >> /etc/profile'"
 
 echo "== Now is the time to create a password for root =="
 set_password
 
 echo "== Creating optware init script =="
-adb shell su -c "echo \#\!/system/bin/sh >/data/opt/optware-init.sh"
-adb shell su -c "echo 'ls /data/opt >/dev/null 2>&1 && exit' >>/data/opt/optware-init.sh"
-adb shell su -c "echo echo Reinitializing optware rootfs links >>/data/opt/optware-init.sh"
-adb shell su -c "echo mount -o remount,rw rootfs / >>/data/opt/optware-init.sh"
-adb shell su -c "echo ln -s $OPTWARE_DIR /opt >>/data/opt/optware-init.sh"
-adb shell su -c "echo ln -s $OPTWARE_DIR/rootlib /lib >>/data/opt/optware-init.sh"
-adb shell su -c "echo ln -s $OPTWARE_DIR/rootbin /bin >>/data/opt/optware-init.sh"
-adb shell su -c "echo ln -s $OPTWARE_DIR/tmp /tmp >>/data/opt/optware-init.sh"
-adb shell su -c "echo mount -o remount,ro rootfs / >>/data/opt/optware-init.sh"
+adb push files/optware-init.sh /data/opt/optware-init.sh
+adb shell "su -c 'echo echo Reinitializing optware rootfs links >>/data/opt/optware-init.sh'"
+adb shell "su -c 'echo mount -o remount,rw rootfs / >>/data/opt/optware-init.sh'"
+adb shell "su -c 'echo ln -s $OPTWARE_DIR /opt >>/data/opt/optware-init.sh'"
+adb shell "su -c 'echo ln -s $OPTWARE_DIR/rootlib /lib >>/data/opt/optware-init.sh'"
+adb shell "su -c 'echo ln -s $OPTWARE_DIR/rootbin /bin >>/data/opt/optware-init.sh'"
+adb shell "su -c 'echo ln -s $OPTWARE_DIR/tmp /tmp >>/data/opt/optware-init.sh'"
+adb shell "su -c 'echo mount -o remount,ro rootfs / >>/data/opt/optware-init.sh'"
 t_chmod 0755 /data/opt/optware-init.sh
 
-echo "== Creating optware startup script =="
-adb shell su -c "echo \#\!/system/bin/sh >/data/opt/$start_script"
-adb shell su -c "echo 'ls /data/opt >/dev/null 2>&1 ||' su -c $OPTWARE_DIR/optware-init.sh >>/data/opt/$start_script"
-adb shell su -c "echo export PATH=/data/opt/sbin:/data/opt/bin:/bin:/data/opt/local/bin:/system/bin >>/data/opt/$start_script"
-adb shell su -c "echo 'if busybox test \\\$(busybox id -u) = 0; then HOME=/data/opt/home/root; else HOME=/data/opt/home/user; fi' >>/data/opt/$start_script"
-adb shell su -c "echo export HOME>>/data/opt/$start_script"
-adb shell su -c "echo /bin/bash >>/data/opt/$start_script"
-t_chmod 0755 /data/opt/$start_script
+adb push files/start.sh /data/opt/start.sh
 
 t_remount_ro /
 t_remount_ro /system
@@ -430,18 +423,18 @@ adb shell cp /data/opt/bin/bash /system/bin/
 t_remount_ro /system
 
 ipkg_install vim
-#ipkg_install cron
+ipkg_install cron
 ipkg_install openssh
 ipkg_install rsync
 ipkg_install samba
-#ipkg_install transmission
-#ipkg_install python27
-#ipkg_install py27-setuptools
-#adb shell PATH=/data/opt/bin:/bin /data/opt/local/bin/easy-install-2.7 pip
-#pip_install distribute
-#pip_install pyyaml
-#pip_install flexget
-#pip_install transmissionrpc
+ipkg_install transmission
+ipkg_install python27
+ipkg_install py27-setuptools
+adb shell PATH=/data/opt/bin:/bin /data/opt/bin/easy_install-2.7 pip
+pip_install distribute
+pip_install pyyaml
+pip_install flexget
+pip_install transmissionrpc
 
 echo "== Pushing some config files =="
 adb push files/.bashrc /data/opt/home/root/.bashrc
@@ -452,26 +445,38 @@ adb push files/ssh_config /data/opt/etc/openssh/ssh_config
 adb push files/sshd_config /data/opt/etc/openssh/sshd_config
 adb push files/banner /data/opt/etc/openssh/banner
 adb push files/smb.conf /data/opt/etc/samba/smb.conf
-#adb push files/S90transmission-daemon /data/opt/etc/init.d/S90transmission-daemon
+adb push files/S90transmission-daemon /data/opt/etc/init.d/S90transmission-daemon
+adb push files/S91flexget /data/opt/etc/init.d/S91flexget
+
+adb shell "su -c 'mkdir /data/opt/home/root/.config'"
+adb shell "su -c 'mkdir /data/opt/home/root/.config/transmission'"
+adb shell "su -c 'mkdir /data/opt/home/root/.config/flexget'"
+
+
+adb push files/config.yml /data/opt/home/root/.config/flexget
+adb push files/secrets.yml /data/opt/home/root/.config/flexget
+adb push files/settings.json /data/opt/home/root/.config/transmission
 
 adb shell PATH=/data/opt/bin:/bin /data/opt/bin/mkdir /data/opt/home/root/.ssh
-adb shell su -c "chown root.root /data/opt/home/root/.ssh"
+adb shell "su -c 'chown root.root /data/opt/home/root/.ssh'"
 t_chmod 700 /data/opt/home/root/.ssh
-adb shell su -c "chown root.root /data/opt/home/root/start.sh"
+adb shell "su -c 'chown root.root /data/opt/home/root/start.sh'"
 t_chmod 700 /data/opt/home/root/start.sh
-adb shell su -c "chown root.root /data/opt/home/root/sysinit"
+adb shell "su -c 'chown root.root /data/opt/home/root/sysinit'"
 t_chmod 700 /data/opt/home/root/sysinit
-adb shell su -c "chown root.root /data/opt/home/root/.profile"
+adb shell "su -c 'chown root.root /data/opt/home/root/.profile'"
 t_chmod 600 /data/opt/home/root/.profile
-adb shell su -c "chown root.root /data/opt/home/root/.bashrc"
+adb shell "su -c 'chown root.root /data/opt/home/root/.bashrc'"
 t_chmod 700 /data/opt/home/root/.bashrc
-#t_chmod 755 /data/opt/etc/init.d/S90transmission-daemon
+t_chmod 755 /data/opt/etc/init.d/S90transmission-daemon
 t_chmod 600 /data/opt/etc/samba/smb.conf
-t_chmod 644 /data/opt/etc/openssh/ssh_conf
-t_chmod 644 /data/opt/etc/openssh/sshd_conf
+t_chmod 644 /data/opt/etc/openssh/ssh_config
+t_chmod 644 /data/opt/etc/openssh/sshd_config
+
+
 
 echo "== Starting optware and services =="
-adb shell sh /data/opt/home/root/sysinit
+adb shell su -c "/data/opt/home/root/sysinit"
 echo "If everything worked, you should be able to use ssh with root as the user
 and the password you provided. You should also have samba, transmission, and
 cron up and running. Make sure to kill transmission before editing the

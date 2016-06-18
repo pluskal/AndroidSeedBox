@@ -9,5 +9,5 @@ fi
 rm -f /var/run/transmission-daemon.pid
 
 if [ -e /opt/bin/transmission-daemon ] ; then
-  /opt/bin/transmission-daemon
+  /opt/bin/transmission-daemon --config-dir /data/opt/home/root/.config/transmission
 fi

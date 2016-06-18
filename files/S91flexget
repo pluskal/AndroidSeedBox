@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if [ -f /var/run/flexget.pid ] ; then
+  kill `cat /var/run/flexget.pid`
+else
+  killall flexget 2>/dev/null
+fi
+
+rm -f /var/run/flexget.pid
+
+if [ -e /opt/bin/flexget ] ; then
+  /data/opt/local/bin/flexget  -c /data/opt/home/root/.config/flexget/config.yml
+fi
