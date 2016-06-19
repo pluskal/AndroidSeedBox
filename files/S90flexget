@@ -1,0 +1,4 @@
+#!/bin/sh
+
+killall flexget 2>/dev/null
+(cd /opt/home/root/.config/flexget; /data/opt/local/bin/flexget daemon start) 

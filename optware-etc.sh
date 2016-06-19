@@ -35,6 +35,8 @@ ADB_WRITABLE_DIR=/data/local
 # Particular field to install from, stable by default
 #FEED=http://ipkg.nslu2-linux.org/feeds/optware/cs08q1armel/cross/stable
 FEED=http://ipkg.nslu2-linux.org/feeds/optware/cs08q1armel/cross/stable
+ROOT_PASSWD="TODO"
+FLEXGET_WEB_PASSWD="TODO"
 
 # DO NOT edit anything below this line unless you know what you are doing
 
@@ -205,12 +207,15 @@ optware_uninstall () {
     adb shell su -c "rm -rf /bin"
     adb shell su -c "rm -rf /data/opt"
     adb shell su -c "rm -rf /tmp"
+    adb shell su -c "rm -rf /opt"
     t_remount_ro /
     t_remount_rw /system
     adb shell su -c "rm /etc/resolv.conf"
     adb shell su -c "rm /etc/mtab"
     adb shell su -c "rm /etc/passwd"
     adb shell su -c "rm /etc/group"
+    adb shell su -c "rm -rf /etc/crontab"
+    adb shell su -c "rm -rf /etc/crontabs"
     t_rm_rf $tmp_dir
     t_remount_ro /system
     echo "Optware sucessfully uninstalled"
@@ -225,17 +230,7 @@ pip_install () {
 }
 
 set_password () {
-    echo "Please enter your desired password."
-    read -s password1
-    echo "Please enter your password again."
-    read -s password2
-    if [ $password1 == $password2 ]
-    then
-        adb shell "su -c '/data/opt/bin/busybox passwd root -d $password1'"
-    else
-        echo "Passwords didn\'t match. Please try again."
-        set_password
-    fi
+    adb shell "su -c '/data/opt/bin/busybox passwd root -d $ROOT_PASSWD'"
 }
 
 #
@@ -275,6 +270,8 @@ t_mkdir_p $tmp_dir
 
 t_mkdir_p $OPTWARE_DIR
 t_cd_ln $OPTWARE_DIR -s $OPTWARE_DIR /data/opt
+
+adb shell "su -c 'ln -s $OPTWARE_DIR /opt'"
 
 t_mkdir_p $OPTWARE_DIR/rootbin
 t_cd_ln $OPTWARE_DIR -s $OPTWARE_DIR/rootbin /bin
@@ -398,7 +395,7 @@ t_remount_ro /system
 
 echo "== Reinstalling bootstrap packages =="
 echo "Make sure that your device is woken up and connected to the Internet"
-read -p "Press [Enter] to continue"
+#read -p "Press [Enter] to continue"
 #
 # Now that we have all dependencies to run ipkg bootstrapped on device,
 # we need to use ipkg to reinstall itself and all those dependencies,
@@ -411,7 +408,7 @@ ipkg_install wget
 ipkg_install busybox
 
 echo "== Installing extra packages =="
-read -p "Press [Enter] to continue"
+#read -p "Press [Enter] to continue"
 #install our extras
 ipkg_install man
 ipkg_install bash
@@ -436,6 +433,14 @@ pip_install pyyaml
 pip_install flexget
 pip_install transmissionrpc
 
+
+t_remount_rw /system
+#adb shell "su -c 'mkdir /opt/etc/crontabs'"
+adb shell "su -c 'ln -s /opt/etc/crontab /etc/crontab'"
+#adb shell "su -c 'ln -s /opt/etc/crontabs /etc/crontabs'"
+adb shell su -c "echo 'Europe/Prague'>/opt/etc/timezone"
+t_remount_ro /system
+
 echo "== Pushing some config files =="
 adb push files/.bashrc /data/opt/home/root/.bashrc
 adb push files/.profile /data/opt/home/root/.profile
@@ -446,7 +451,7 @@ adb push files/sshd_config /data/opt/etc/openssh/sshd_config
 adb push files/banner /data/opt/etc/openssh/banner
 adb push files/smb.conf /data/opt/etc/samba/smb.conf
 adb push files/S90transmission-daemon /data/opt/etc/init.d/S90transmission-daemon
-adb push files/S91flexget /data/opt/etc/init.d/S91flexget
+adb push files/S90flexget /data/opt/etc/init.d/S90flexget
 
 adb shell "su -c 'mkdir /data/opt/home/root/.config'"
 adb shell "su -c 'mkdir /data/opt/home/root/.config/transmission'"
@@ -456,6 +461,16 @@ adb shell "su -c 'mkdir /data/opt/home/root/.config/flexget'"
 adb push files/config.yml /data/opt/home/root/.config/flexget
 adb push files/secrets.yml /data/opt/home/root/.config/flexget
 adb push files/settings.json /data/opt/home/root/.config/transmission
+adb push files/cron_transmission.sh /data/opt/home/root
+adb push files/cron_flexget.sh /data/opt/home/root
+
+#adb shell su -c "(crontab -l 2>/dev/null; echo '* * * * * /data/opt/home/root/cron_transmission.sh') | crontab -"
+#adb shell su -c "(crontab -l 2>/dev/null; echo '* * * * * /data/opt/home/root/cron_flexget.sh') | crontab -"
+adb shell su -c "echo '* * * * * /data/opt/home/root/cron_flexget.sh'>> /etc/crontab"
+adb shell su -c "echo '* * * * * /data/opt/home/root/cron_transmission.sh'>> /etc/crontab"
+
+adb shell "su -c '(cd /opt/home/root/.config/flexget; /opt/local/bin/flexget web passwd $FLEXGET_WEB_PASSWD)'"
+
 
 adb shell PATH=/data/opt/bin:/bin /data/opt/bin/mkdir /data/opt/home/root/.ssh
 adb shell "su -c 'chown root.root /data/opt/home/root/.ssh'"
